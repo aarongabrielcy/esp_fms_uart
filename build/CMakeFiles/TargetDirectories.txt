@@ -842,6 +842,13 @@ C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/serial/CMak
 C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/serial/CMakeFiles/install.dir
 C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/serial/CMakeFiles/install/local.dir
 C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/serial/CMakeFiles/install/strip.dir
+C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/sim/CMakeFiles/__idf_sim.dir
+C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/sim/CMakeFiles/edit_cache.dir
+C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/sim/CMakeFiles/rebuild_cache.dir
+C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/sim/CMakeFiles/list_install_components.dir
+C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/sim/CMakeFiles/install.dir
+C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/sim/CMakeFiles/install/local.dir
+C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/sim/CMakeFiles/install/strip.dir
 C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/uart/CMakeFiles/__idf_uart.dir
 C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/uart/CMakeFiles/edit_cache.dir
 C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build/esp-idf/uart/CMakeFiles/rebuild_cache.dir
