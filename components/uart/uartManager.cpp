@@ -54,10 +54,16 @@ void uartManager::uartTask(void *pvParameters) {
 
 void uartManager::processUartData(std::string line) {
     ESP_LOGI(TAG, "UART Received: %s", line.c_str());
+    lastResponse = line;
     state = RECEIVING;
     state = PROCESSING;
     // Aquí se pueden agregar más procesos para manejar respuestas AT
+    SIM7600::getInstance().processUARTEvent(line);
     state = IDLE;
+}
+//Función para verificar si la última respuesta de UART contiene un texto específico
+bool uartManager::lastResponseContains(const std::string& keyword) {
+    return lastResponse.find(keyword) != std::string::npos;
 }
 void uartManager::serialInputTask(void *pvParameters) {
     char inputBuffer[100];
@@ -75,3 +81,14 @@ void uartManager::serialInputTask(void *pvParameters) {
 void uartManager::startSerialInputTask() {
     xTaskCreate(serialInputTask, "serialInputTask", 4096, NULL, 1, NULL);
 }
+/*void uartManager::tcpTask(void *pvParameters) {
+    ESP_LOGI(TAG, "Tarea TCP activa ~~~~~~~~~~~~~~~~~~~~~~~~");
+    while (true) {
+       SIM7600::getInstance().sendTCPMessage();
+        vTaskDelay(pdMS_TO_TICKS(30000));  // Esperar 30s
+    }
+}
+
+void uartManager::startTCPTask() {
+    xTaskCreate(tcpTask, "tcpTask", 4096, NULL, 1, NULL);
+}*/
