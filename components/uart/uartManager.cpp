@@ -23,7 +23,7 @@ void uartManager::init() {
 }
 
 void uartManager::startListening() {
-    xTaskCreate(uartTask, "uartTask", 4096, this, 1, NULL);
+    xTaskCreate(uartTask, "uartTask", 8192, this, 1, NULL);
 }
 
 void uartManager::sendData(const std::string &data) {
@@ -51,7 +51,36 @@ void uartManager::uartTask(void *pvParameters) {
         }
     }
 }
+/*void uartManager::uartTask(void *pvParameters) {
+    uartManager *instance = static_cast<uartManager*>(pvParameters);
+    uint8_t data[BUF_SIZE] = {0};
+    std::string buffer = "";
 
+    while (true) {
+        int len = uart_read_bytes(UART_NUM, data, BUF_SIZE - 1, pdMS_TO_TICKS(100));
+        if (len > 0) {
+            if (len >= BUF_SIZE) len = BUF_SIZE - 1;
+            data[len] = '\0';
+
+            buffer.append(reinterpret_cast<char*>(data), len);
+            
+            // Evita que `buffer` crezca indefinidamente
+            if (buffer.length() > 512) {
+                ESP_LOGW("UART_MANAGER", "Buffer demasiado grande, limpiando...");
+                buffer.clear();
+            }
+
+            size_t pos;
+            while ((pos = buffer.find("\n")) != std::string::npos) {
+                std::string line = buffer.substr(0, pos);
+                buffer.erase(0, pos + 1);
+                instance->processUartData(line);
+                vTaskDelay(pdMS_TO_TICKS(5));
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}*/
 void uartManager::processUartData(std::string line) {
     ESP_LOGI(TAG, "UART Received: %s", line.c_str());
     lastResponse = line;
