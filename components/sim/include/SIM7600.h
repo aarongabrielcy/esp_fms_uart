@@ -19,6 +19,7 @@ class SIM7600 {
         bool psiReportReady;
         std::string message;
         bool isModuleReady();
+        bool cclkRequested = false;
     public:
         static SIM7600& getInstance();
         void configureSIM7600();

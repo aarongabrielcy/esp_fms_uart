@@ -8,53 +8,49 @@ parseData& parseData::getInstance() {
 }
 
 void parseData::GPS(const std::string& response) {
-    std::string cleanResponse = response;
-    size_t prefixPos = cleanResponse.find("+CGNSSINFO: ");
-    if (prefixPos != std::string::npos) {
-        cleanResponse = cleanResponse.substr(prefixPos + 7); // Saltar "+CPSI: "
-    }
-    // Dividir la cadena en tokens
-    std::vector<std::string> tokens = utils::getInstance().splitString(cleanResponse, ',');
-
-    // Validar si hay suficientes datos
-    if (tokens.size() < 16 || cleanResponse.find_first_not_of(",") == std::string::npos) {
+    std::string cleanResponse = utils::getInstance().cleanData(response, "CGNSSINFO");
+    
+    ESP_LOGI(TAG, "Clean CGNSSINFO =>%s", cleanResponse.c_str());
+    
+    if (cleanResponse.find(",,,,,,,,,,,,,,,") != std::string::npos) {
+        ESP_LOGW(TAG, "No hay fix GNSS.");
         tkr.fix = 0;
-        ESP_LOGW(TAG, "No hay fix GNSS, asignando valores por defecto.");
+        return;
+    }
+    std::vector<std::string> tokens = utils::getInstance().splitString(cleanResponse, ',');
+    // Validar que hay suficientes datos
+    if (tokens.size() < 16) {
+        ESP_LOGW(TAG, "Datos insuficientes en GNSS,  manteniendo valores por defecto.");
+        tkr.fix = 0;
         return;
     }
 
-    //Asignación de datos parseados
-    //mode = std::stoi(tokens[0]);               // Modo de GNSS
-    tkr.gps_svs = std::stoi(tokens[1]);            // Satélites GPS en uso
-    //glonass_svs = std::stoi(tokens[2]);        // Satélites GLONASS en uso
-    //beidou_svs = std::stoi(tokens[3]);         // Satélites BEIDOU en uso
-    tkr.lat = tokens[4];                           // Latitud
-    tkr.lon = tokens[6];                           // Longitud
-    tkr.date = tokens[8];                          // Fecha UTC en formato DDMMYY
-    tkr.time = tokens[9];                          // Hora UTC en formato HHMMSS.s
-    tkr.speed = std::stod(tokens[11]);             // Velocidad en nudos
-    tkr.course = std::stod(tokens[12]);            // Dirección en grados
-    tkr.fix = 1;                                   // Indica que hay un fix válido
+    // Validar que los valores no estén vacíos antes de convertirlos
+    tkr.gps_svs = std::stoi(tokens[1]);
+    // tkr.glonass_svs = std::stoi(tokens[2]);
+    // tkr.beidou_svs = std::stoi(tokens[3]);
+    tkr.lat = tokens[4];
+    tkr.lon = tokens[6];
+    tkr.date = tokens[8];
+    tkr.time = tokens[9];
+    tkr.speed = std::stod(tokens[11]);
+    tkr.course = std::stod(tokens[12]);
 
-    /*ESP_LOGI(TAG, "📡 GNSS Parseado: Fecha:%s Hora:%s Lat:%s Lon:%s Velocidad:%.2f Curso:%.2f", 
+    tkr.fix = 1; // Solo marcamos fix si hay datos válidos
+
+    ESP_LOGI(TAG, "GNSS Parseado: Fecha:%s Hora:%s Lat:%s Lon:%s Velocidad:%.2f Curso:%.2f", 
              tkr.date.c_str(), tkr.time.c_str(), tkr.lat.c_str(), 
-             tkr.lon.c_str(), tkr.speed, tkr.course);*/
+             tkr.lon.c_str(), tkr.speed, tkr.course);
 }
 
 void parseData::PSI(const std::string& response) {
-    // Eliminar el prefijo "+CPSI: " si está presente vuelve esto una funcion en utils.cpp
-    std::string cleanResponse = response;
-    size_t prefixPos = cleanResponse.find("+CPSI: ");
-    if (prefixPos != std::string::npos) {
-        cleanResponse = cleanResponse.substr(prefixPos + 7); // Saltar "+CPSI: "
-    }
+    std::string cleanResponse = utils::getInstance().cleanData(response, "CPSI");
     std::vector<std::string> tokens = utils::getInstance().splitString(cleanResponse, ',');
     if (tokens.empty()) {
         ESP_LOGE(TAG, "Error: String vacío en PSI.");
         return;
     }
     std::string systemMode = tokens[0];
-
     if (systemMode == "GSM") {
         utils::getInstance().parseGSM(tokens);
     } else if (systemMode == "LTE") {
@@ -71,15 +67,21 @@ void parseData::PSI(const std::string& response) {
 }
 
 void parseData::CLK(const std::string& response) {
-    ESP_LOGI(TAG, "parseCCLK =>%s", response.c_str());
+    
+    std::string cleanResponse = utils::getInstance().cleanData(response, "CCLK");
+    ESP_LOGI(TAG, "parseCCLK =>%s", cleanResponse.c_str());
 
-    size_t start = response.find("\"") + 1;
-    size_t end = response.find("\"", start);
-    std::string datetime = response.substr(start, end - start);
+    size_t start = cleanResponse.find("\"") + 1;
+    size_t end = cleanResponse.find("\"", start);
+    std::string datetime = cleanResponse.substr(start, end - start);
     
     convertToUTC(datetime);
 }
 void parseData::convertToUTC(const std::string& datetime) {
+    if (datetime.empty()) {
+        ESP_LOGE(TAG, "Error: La cadena de fecha/hora está vacía.");
+        return;
+    }
     std::istringstream ss(datetime);
     int year, month, day, hour, minute, second, timezone_quarters;
 
@@ -90,11 +92,9 @@ void parseData::convertToUTC(const std::string& datetime) {
         ESP_LOGE(TAG, "Error al parsear la fecha y hora.");
         return;
     }
-
     // Convertimos a UTC
     int timezone_offset = timezone_quarters / 4;  // Convertir cuartos de hora a horas completas
     hour -= timezone_offset;
-
     // Ajustamos desbordamiento de horas
     if (hour < 0) {
         hour += 24;
@@ -103,7 +103,6 @@ void parseData::convertToUTC(const std::string& datetime) {
         hour -= 24;
         day++;
     }
-
     //Formateamos la fecha a `YYYYMMDD`
     std::ostringstream dateStream;
     dateStream << "20" << std::setw(2) << std::setfill('0') << year  // "25" → "2025"
@@ -118,11 +117,10 @@ void parseData::convertToUTC(const std::string& datetime) {
                << std::setw(2) << second;
     tkr.time = timeStream.str();
 
-    //ESP_LOGI(TAG, "Hora UTC Parseada: %s %s", tkr.date.c_str(), tkr.time.c_str());
+    ESP_LOGI(TAG, "Hora UTC Parseada: %s %s", tkr.date.c_str(), tkr.time.c_str());
 }
 
-/**
- * void parseData::GPS(const std::string& response) {
+/*void parseData::GPS(const std::string& response) {
     ESP_LOGI(TAG, "parseCGPS =>%s", response.c_str());
     if (response.find(" ,,,,,,,,,,,,,,") != std::string::npos) {
         ESP_LOGW(TAG, "No hay fix GNSS.");
@@ -140,5 +138,5 @@ void parseData::convertToUTC(const std::string& datetime) {
     ESP_LOGI(TAG, "📡 GNSS Parseado: %s %s %s %s %.2f %.2f", 
              tkr.date.c_str(), tkr.time.c_str(), tkr.lat.c_str(), 
              tkr.lon.c_str(), tkr.speed, tkr.course);
-}
- */
+}*/
+ 

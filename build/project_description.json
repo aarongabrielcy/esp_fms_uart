@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "esp_fms_uart",
-    "project_version":    "debf946-dirty",
+    "project_version":    "4088535-dirty",
     "project_path":       "C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart",
     "idf_path":           "C:/Users/aaron/esp/v5.4/esp-idf",
     "build_dir":          "C:/Users/aaron/Documents/esp-idf-projects/esp_fms_uart/build",

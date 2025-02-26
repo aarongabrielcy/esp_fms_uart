@@ -11,6 +11,7 @@ SIM7600& SIM7600::getInstance() {
 
 void SIM7600::updateMessage() {
     std::ostringstream msgStream;
+    msgStream << std::fixed << std::setprecision(2); 
     msgStream << tkr.header << ";" << tkr.imei << ";" << tkr.rep_map << ";"<< tkr.model << ";" << tkr.sw_ver << ";" << tkr.msg_type << ";"<< tkr.date << ";" << tkr.time << ";" << tkr.cell_id 
               << ";" << tkr.mcc << ";"<< tkr.mnc << ";" << tkr.lac_tac << ";" << tkr.rxlvl_rsrp << ";"<< tkr.lat << ";" << tkr.lon << ";" << tkr.speed << ";"<< tkr.course << ";" << tkr.gps_svs
               << ";" << tkr.fix << ";"<< tkr.in_state << ";" << tkr.out_state << ";" << tkr.mode << ";"<< tkr.stt_rpt_type << ";" << tkr.msg_num << ";" << tkr.bck_volt << ";"<< tkr.power_Volt;
@@ -71,7 +72,7 @@ void SIM7600::configureSIM7600() {
 
     const char* commands[] = {
         "AT+CGPS=1",
-        "AT+CGPSINFO=29",
+        "AT+CGNSSINFO=29",
         "AT+CPSI=28",
         "AT+NETOPEN"
     };
@@ -115,20 +116,22 @@ void SIM7600::processUARTEvent(std::string line) {
         ESP_LOGI(TAG, "📡 Indicación (>) para mandar msj a servidor recivida");
         waitingForPrompt = false;
         serialConsole::getInstance().sendCommand(message);
-    }else if(line.find("+CGPSINFO:") != std::string::npos) {
+    }else if(line.find("+CGNSSINFO:") != std::string::npos) {
+        ESP_LOGI(TAG, "Evento CPSI recibido#%s",line.c_str());
         gpsReportReady = true;
-        //parseData::getInstance().GPS(line);
         parseData::getInstance().GPS(line);
         
-        if (tkr.fix == 0) { 
+        if (tkr.fix == 0 && !cclkRequested) { 
             ESP_LOGW(TAG, "No hay fix GNSS, solicitando AT+CCLK...");
             serialConsole::getInstance().sendCommand("AT+CCLK?");
+            cclkRequested = true; 
         } else {
             updateMessage();
         }
         if (gpsReportReady && psiReportReady) {
             sendTCPMessage();
             gpsReportReady = false;
+            psiReportReady = false; //<--------------------- cunado sea falso o cunado exista No networkservice y fix es verdadero o "1" entonces guarda las cadenas SST{IMEI}... en buffer
         }
     }else if (line.find("+CPSI:") != std::string::npos) {
         ESP_LOGI(TAG, "Evento CPSI recibido#%s",line.c_str());
@@ -140,6 +143,7 @@ void SIM7600::processUARTEvent(std::string line) {
         ESP_LOGI(TAG, "datos realtime leidos y listo para parsear");
         parseData::getInstance().CLK(line);
         updateMessage();
+        cclkRequested = false;
 
     }else if (line.find("+CMTI:") != std::string::npos) {
         ESP_LOGI(TAG, "SMS Detectado enviando comando para leer...");
@@ -162,5 +166,9 @@ void SIM7600::processUARTEvent(std::string line) {
     }else if(line.find("+CIPSEND: 0,") != std::string::npos) {
         ESP_LOGI(TAG, "Mensaje enviado exitosamente, reiniciando envío en 30s.");
         waitingForPrompt = false;
+    }else if(line.find("+CPSI: NO SERVICE") != std::string::npos) {
+        if(tkr.fix == 1) {
+            ESP_LOGI(TAG, "procesando cadeneas con coordenadas en buffer ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬");   
+        }
     }
 }

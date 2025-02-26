@@ -18,7 +18,16 @@ std::vector<std::string> utils::splitString(const std::string& str, char delimit
     }
     return tokens;
 }
+std::string utils::cleanData(const std::string& response, const std::string& command) {
+    std::string prefix = "+" + command + ": ";
+    size_t pos = response.find(prefix);
 
+    if (pos != std::string::npos) {
+        return response.substr(pos + prefix.length());
+    }
+
+    return response; // Si no encuentra la cabecera, retorna la cadena original
+}
 //Procesa datos de GSM
 void utils::parseGSM(const std::vector<std::string>& tokens) {
     if (tokens.size() < 9) {
@@ -28,7 +37,7 @@ void utils::parseGSM(const std::vector<std::string>& tokens) {
 
     tkr.mcc = std::stoi(tokens[2].substr(0, 3));
     tkr.mnc = std::stoi(tokens[2].substr(4, 2));
-    tkr.lac_tac = tokens[3];
+    tkr.lac_tac = removeHexPrefix(tokens[3]);
     tkr.cell_id = tokens[4];
     tkr.rxlvl_rsrp = std::stoi(tokens[6]);
 
@@ -45,7 +54,7 @@ void utils::parseLTE(const std::vector<std::string>& tokens) {
 
     tkr.mcc = std::stoi(tokens[2].substr(0, 3));
     tkr.mnc = std::stoi(tokens[2].substr(4, 3));
-    tkr.lac_tac = tokens[3];
+    tkr.lac_tac = removeHexPrefix(tokens[3]);
     tkr.cell_id = tokens[4];
     tkr.rxlvl_rsrp = std::stoi(tokens[11]);
 
@@ -62,7 +71,7 @@ void utils::parseWCDMA(const std::vector<std::string>& tokens) {
 
     tkr.mcc = std::stoi(tokens[2].substr(0, 3));
     tkr.mnc = std::stoi(tokens[2].substr(4, 2));
-    tkr.lac_tac = tokens[3];
+    tkr.lac_tac = removeHexPrefix(tokens[3]);
     tkr.cell_id = tokens[4];
     tkr.rxlvl_rsrp = std::stoi(tokens[12]);
 
@@ -98,4 +107,12 @@ void utils::parseEVDO(const std::vector<std::string>& tokens) {
 
     ESP_LOGI(TAG, "EVDO Parseado: MCC:%d, MNC:%d, RXLVL:%d",
              tkr.mcc, tkr.mnc, tkr.rxlvl_rsrp);
+}
+std::string utils::removeHexPrefix(const std::string& hexValue) {
+    std::string parseHexa = hexValue;
+    if (hexValue.rfind("0x", 0) == 0 || hexValue.rfind("0X", 0) == 0) { 
+        parseHexa = parseHexa.erase(0, 2);
+        return parseHexa;
+    }
+    return hexValue;
 }
