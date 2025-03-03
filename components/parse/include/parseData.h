@@ -8,6 +8,7 @@
 #include <iomanip>
 #include "utils.h"
 #include "trackerData.h" 
+#include "SIM7600.h"
 
 class parseData {
     private:

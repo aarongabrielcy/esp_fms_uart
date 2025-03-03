@@ -83,7 +83,7 @@ void pwManager::blinkLedGnss(int fixState) {
 // Inicializar el pin de ignición
 void pwManager::initInIgn(int ignPin) {
     gpio_reset_pin((gpio_num_t)ignPin);
-    ESP_LOGI("pwManager", "Inicializando pin de ignición=%d", ignPin);
+    ESP_LOGI("pwManager", "Inicializando pin de ignicion=%d", ignPin);
     gpio_config_t io_conf = {};
     io_conf.pin_bit_mask = (1ULL << ignPin);
     io_conf.mode = GPIO_MODE_INPUT;

@@ -24,7 +24,7 @@ void parseData::GPS(const std::string& response) {
         tkr.fix = 0;
         return;
     }
-
+    float prevCourse = tkr.course; // Guardamos el curso previo
     // Validar que los valores no estén vacíos antes de convertirlos
     tkr.gps_svs = std::stoi(tokens[1]);
     // tkr.glonass_svs = std::stoi(tokens[2]);
@@ -37,7 +37,20 @@ void parseData::GPS(const std::string& response) {
     tkr.course = std::stod(tokens[12]);
 
     tkr.fix = 1; // Solo marcamos fix si hay datos válidos
-
+    //Comparar ángulo de giro
+    if (abs(tkr.course - prevCourse) >= SIM7600::getInstance().angleCourse) {
+        if (!SIM7600::getInstance().reportFastMode) {
+            ESP_LOGW(TAG, "Cambio de rumbo detectado (%.2f°), activando reporte rápido.", abs(tkr.course - prevCourse));
+            SIM7600::getInstance().reportFastMode = true;
+            SIM7600::getInstance().updateReportRate(1);  // Cambiar a 1 seg
+        }
+    } else {
+        if (SIM7600::getInstance().reportFastMode) {
+            ESP_LOGI(TAG, "Estabilidad en el rumbo, regresando a %d seg.", SIM7600::getInstance().timeReport);
+            SIM7600::getInstance().reportFastMode = false;
+            SIM7600::getInstance().updateReportRate(SIM7600::getInstance().timeReport);
+       }
+    }
     ESP_LOGI(TAG, "GNSS Parseado: Fecha:%s Hora:%s Lat:%s Lon:%s Velocidad:%.2f Curso:%.2f", 
              tkr.date.c_str(), tkr.time.c_str(), tkr.lat.c_str(), 
              tkr.lon.c_str(), tkr.speed, tkr.course);

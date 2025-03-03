@@ -25,17 +25,17 @@ bool SIM7600::isModuleReady() {
     int wait_rdy_retries = 20;  // Máximo 20 intentos (~20 segundos)
     while (wait_rdy_retries--) {
         if (uartManager::getInstance().lastResponseContains("RDY")) {
-            ESP_LOGI(TAG, "SIM7600 inició correctamente.");
+            ESP_LOGI(TAG, "SIM7600 inicio correctamente.");
             break;
         }
-        vTaskDelay(pdMS_TO_TICKS(1000));  // Esperar 1 segundo
+        vTaskDelay(pdMS_TO_TICKS(2000));  // Esperar 1 segundo
     }
 
     int retries = 10;  // Intentar 10 veces enviar "AT"
     while (retries--) {
         ESP_LOGI(TAG, "Intento %d: Enviando AT...", 10 - retries);
         serialConsole::getInstance().sendCommand("AT");
-        vTaskDelay(pdMS_TO_TICKS(1000));  // Esperar respuesta 1 segundo
+        vTaskDelay(pdMS_TO_TICKS(2000));  // Esperar respuesta 1 segundo
 
         if (uartManager::getInstance().lastResponseContains("OK")) {
             ESP_LOGI(TAG, "SIM7600 está listo para recibir comandos.");
@@ -43,7 +43,7 @@ bool SIM7600::isModuleReady() {
         }
     }
 
-    ESP_LOGE(TAG, "ERROR: SIM7600 no respondió a AT. Verifica la alimentación y conexión.");
+    ESP_LOGE(TAG, "ERROR: SIM7600 no respondio a AT. Verifica la alimentacion y conexion.");
     return false;
 }
 bool SIM7600::checkAndReconnectTCP() {
@@ -51,12 +51,12 @@ bool SIM7600::checkAndReconnectTCP() {
     vTaskDelay(pdMS_TO_TICKS(1000));
 
     if (!uartManager::getInstance().lastResponseContains("34.196.135.179")) {
-        ESP_LOGW(TAG, "Conexión TCP perdida, intentando reconectar...");
+        ESP_LOGW(TAG, "Conexion TCP perdida, intentando reconectar...");
         serialConsole::getInstance().sendCommand("AT+CIPOPEN=0,\"TCP\",\"34.196.135.179\",5200");
         vTaskDelay(pdMS_TO_TICKS(3000));
 
         if (uartManager::getInstance().lastResponseContains("+CIPOPEN: 0,0")) {
-            ESP_LOGI(TAG, "Conexión TCP reestablecida.");
+            ESP_LOGI(TAG, "Conexion TCP reestablecida.");
             return true;
         } else {
             ESP_LOGE(TAG, "No se pudo reconectar con el servidor.");
@@ -70,10 +70,15 @@ bool SIM7600::checkAndReconnectTCP() {
 void SIM7600::configureSIM7600() {
     if (!isModuleReady()) return;
 
+    char cmdCgps[20];
+    char cmdCpsi[20];
+    snprintf(cmdCgps, sizeof(cmdCgps), "AT+CGNSSINFO=%d", timeReport);
+    snprintf(cmdCpsi, sizeof(cmdCpsi), "AT+CPSI=%d", timeReport);
+    //estos comandos son muy importantes luego entonces si no devuelve una respueta que se ejecutaron correctamente vuelve a ejecutar la tarea "configureSIM7600"
     const char* commands[] = {
         "AT+CGPS=1",
-        "AT+CGNSSINFO=29",
-        "AT+CPSI=28",
+        cmdCgps,
+        cmdCpsi,
         "AT+NETOPEN"
     };
 
@@ -87,11 +92,11 @@ void SIM7600::configureSIM7600() {
         vTaskDelay(pdMS_TO_TICKS(2000));
 
         if (uartManager::getInstance().lastResponseContains("+CIPOPEN: 0,0")) {
-            ESP_LOGI(TAG, "Conexión TCP establecida con éxito.");
+            ESP_LOGI(TAG, "Conexion TCP establecida con éxito.");
             return;
         }
 
-        ESP_LOGW(TAG, "Falló la conexión TCP. Reintentando...");
+        ESP_LOGW(TAG, "Fallo la conexion TCP. Reintentando...");
     }
 
     ESP_LOGE(TAG, "ERROR: No se pudo conectar al servidor TCP.");
@@ -105,7 +110,7 @@ void SIM7600::sendTCPMessage() {
         ESP_LOGI(TAG, "enviando comando =>%s",command.c_str());
         serialConsole::getInstance().sendCommand(command);
     }else {
-        ESP_LOGI(TAG, "El mensaje no se envió validando conexión TCP...");
+        ESP_LOGI(TAG, "El mensaje no se envio validando conexion TCP...");
         if(checkAndReconnectTCP()) {
             waitingForPrompt = false;
         }  
@@ -113,7 +118,7 @@ void SIM7600::sendTCPMessage() {
 }
 void SIM7600::processUARTEvent(std::string line) {
     if (waitingForPrompt && line.find(">") != std::string::npos) {
-        ESP_LOGI(TAG, "📡 Indicación (>) para mandar msj a servidor recivida");
+        ESP_LOGI(TAG, "📡 Indicacion (>) para mandar msj a servidor recivida");
         waitingForPrompt = false;
         serialConsole::getInstance().sendCommand(message);
     }else if(line.find("+CGNSSINFO:") != std::string::npos) {
@@ -156,19 +161,33 @@ void SIM7600::processUARTEvent(std::string line) {
         waitingForPrompt = false;
 
     }else if(line.find("+IPCLOSE: 0,") != std::string::npos) {//+IPCLOSE: 0,2 ERROR?
-        ESP_LOGW(TAG, "La conexión TCP se cerró inesperadamente reconectando..."); //si es 0,2 la cadena no es la adecuada (no tiene header ni IMEI)
+        ESP_LOGW(TAG, "La conexion TCP se cerro inesperadamente reconectando..."); //si es 0,2 la cadena no es la adecuada (no tiene header ni IMEI)
         checkAndReconnectTCP();
     }else if(line.find("+CIPERROR: 4") != std::string::npos) {
-        ESP_LOGW(TAG,  "Network is already opened, no necesitas reabrir la conexión​");
+        ESP_LOGW(TAG,  "Network is already opened, no necesitas reabrir la conexion​");
         /*serialConsole::getInstance().sendCommand("AT+CIPCLOSE=0");  
         vTaskDelay(pdMS_TO_TICKS(2000));*/
         checkAndReconnectTCP();
     }else if(line.find("+CIPSEND: 0,") != std::string::npos) {
-        ESP_LOGI(TAG, "Mensaje enviado exitosamente, reiniciando envío en 30s.");
+        ESP_LOGI(TAG, "Mensaje enviado exitosamente, reiniciando envío en %d.s",timeReport);
         waitingForPrompt = false;
     }else if(line.find("+CPSI: NO SERVICE") != std::string::npos) {
         if(tkr.fix == 1) {
             ESP_LOGI(TAG, "procesando cadeneas con coordenadas en buffer ¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬¬");   
         }
     }
+}
+void SIM7600::updateReportRate(int newRate) {
+    if (newRate < 1 || newRate > 255) return;
+
+    char cmdCgps[20];
+    char cmdCpsi[20];
+    snprintf(cmdCgps, sizeof(cmdCgps), "AT+CGNSSINFO=%d", newRate);
+    snprintf(cmdCpsi, sizeof(cmdCpsi), "AT+CPSI=%d", (newRate));
+
+    ESP_LOGI(TAG, "Actualizando reporte GNSS y CPSI a %d segundos", newRate);
+
+    serialConsole::getInstance().sendCommand(cmdCgps);
+    vTaskDelay(pdMS_TO_TICKS(500)); // Pequeña espera para evitar colisión
+    serialConsole::getInstance().sendCommand(cmdCpsi);
 }

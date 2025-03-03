@@ -27,5 +27,10 @@ class SIM7600 {
         void processUARTEvent(std::string line);
         bool checkAndReconnectTCP();
         void updateMessage();
+        int timeReport = 30;   // Valor inicial (se puede cambiar por serial)
+        int angleCourse = 15;  // Ángulo mínimo para activar reporte rápido
+        bool reportFastMode = false;
+        float lastCourse = 0.0; // Último curso registrado
+        void updateReportRate(int newRate);
 };
 #endif

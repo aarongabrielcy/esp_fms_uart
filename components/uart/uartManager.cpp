@@ -27,6 +27,7 @@ void uartManager::startListening() {
 }
 
 void uartManager::sendData(const std::string &data) {
+    //ESP_LOGI(TAG, "SEND data Received: %s", data.c_str());
     uart_write_bytes(UART_NUM, data.c_str(), data.length());
     uart_write_bytes(UART_NUM, "\r\n", 2);
 }
@@ -37,15 +38,17 @@ void uartManager::uartTask(void *pvParameters) {
     std::string buffer = "";
 
     while (true) {
+        //////////// cuando mandas comandos desde el ESP al Modilo SIM a veces manda datos "basura", agrega una validacion  a los comandos de configuración
         int len = uart_read_bytes(UART_NUM, data, BUF_SIZE - 1, pdMS_TO_TICKS(100));
         if (len > 0) {
             data[len] = '\0';
             buffer += std::string((char*)data);
-
+            //ESP_LOGI(TAG, "UART Raw Data: %s", buffer.c_str());
             size_t pos;
             while ((pos = buffer.find("\n")) != std::string::npos) {
                 std::string line = buffer.substr(0, pos);
                 buffer.erase(0, pos + 1);
+                ESP_LOGI(TAG, "Procesando línea: [%s]", line.c_str());
                 instance->processUartData(line);
             }
         }
@@ -82,7 +85,7 @@ void uartManager::uartTask(void *pvParameters) {
     }
 }*/
 void uartManager::processUartData(std::string line) {
-    ESP_LOGI(TAG, "UART Received: %s", line.c_str());
+    //ESP_LOGI(TAG, "UART Received: %s", line.c_str());
     lastResponse = line;
     state = RECEIVING;
     state = PROCESSING;
@@ -101,7 +104,32 @@ void uartManager::serialInputTask(void *pvParameters) {
         int len = fread(inputBuffer, 1, sizeof(inputBuffer) - 1, stdin);
         if (len > 0) {
             inputBuffer[len] = '\0';  // Asegurar que sea una string válida
-            serialConsole::getInstance().sendCommand(std::string(inputBuffer));
+            std::string inputStr(inputBuffer);
+            ESP_LOGI(TAG, "INPUT Received: %s", inputBuffer);
+            //Verificar si es un comando de configuración
+            /*if (inputStr.find("timereport=") != std::string::npos) {
+                int newTime = std::stoi(inputStr.substr(inputStr.find("=") + 1));
+                if (newTime >= 1 && newTime <= 255) {
+                    SIM7600::getInstance().timeReport = newTime;
+                    ESP_LOGI(TAG, "Intervalo de reporte ajustado a %d segundos", SIM7600::getInstance().timeReport);
+                    SIM7600::getInstance().updateReportRate(newTime);
+                } else {
+                    ESP_LOGW(TAG, "Valor fuera de rango (1-255)");
+                }
+            }
+            else if (inputStr.find("anglecourse=") != std::string::npos) {
+                int newAngle = std::stoi(inputStr.substr(inputStr.find("=") + 1));
+                if (newAngle >= 1 && newAngle <= 90) {
+                    SIM7600::getInstance().angleCourse = newAngle;
+                    ESP_LOGI(TAG, "Angulo de activacion ajustado a %d°", SIM7600::getInstance().angleCourse);
+                } else {
+                    ESP_LOGW(TAG, "Valor fuera de rango (1-90)");
+                }
+            }
+            else {*/
+                // Si no es comando interno, enviarlo por UART_1
+                serialConsole::getInstance().sendCommand(inputStr); //inputBuffer / inputStr
+            /*}*/
         }
         vTaskDelay(pdMS_TO_TICKS(100));
     }
